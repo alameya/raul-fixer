@@ -1,0 +1,69 @@
+#!/usr/bin/php
+<?php
+
+/**
+ * Исправляет кривую семантику в шаблонах
+ */
+if (!isset($argv[1])) {
+    echo 'Argument missing' . PHP_EOL;
+    exit(1);
+}
+
+$functions = [
+    function ($line) {
+        return str_replace('<?php echo', '<?=', $line);
+    },
+    function ($line) {
+        return str_replace('){', ') {', $line);
+    },
+    function ($line) {
+        return str_replace("\t", "    ", $line);
+    },
+    function ($line) {
+        return preg_replace('/<\?=(\S)/', '<?= $1', $line);
+    },
+    function ($line) {
+        return preg_replace('/\) :(\s*\?>)/', '):$1', $line);
+    },
+    function ($line) {
+        return preg_replace('/(\S)\?>/', '$1 ?>', $line);
+    },
+    function ($line) {
+        return preg_replace('/(<\?)(?!(?:php)|=|(?:xml))(.)/s', '$1php $2', $line);
+    },
+    function ($line) {
+        return preg_replace('/((?:end)?(?:(?:while)|(?:for)(?:each)?)|(?:switch))\(/', '$1 (', $line);
+    },
+];
+
+$lines = file($argv[1]);
+
+$outLines = [];
+
+foreach ($lines as $lineNo => $line) {
+    $lineChanged = false;
+    $newLine = $line;
+    foreach ($functions as $function) {
+        $newLine = $function($newLine);
+        if ($line != $newLine) {
+            $lineChanged = true;
+        }
+    }
+
+    if ($lineChanged) {
+        $outLines[$lineNo] = $newLine;
+    }
+}
+
+if (count($outLines)) {
+    foreach ($outLines as $lineNo => $line) {
+        echo sprintf("% 4d: --- %s", $lineNo, $lines[$lineNo]);
+        echo sprintf("% 4d: +++ %s", $lineNo, $line);
+    }
+}
+
+foreach ($outLines as $i => $line) {
+    $lines[$i] = $line;
+}
+
+file_put_contents($argv[1], implode('', $lines));
